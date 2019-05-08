@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Index</title>
+    <meta charset="utf-8" />
+  </head>
+  <body
+    style="height: 100vh; margin:0px; display: flex; justify-content: center; align-items: center"
+  >
+    <div>
+      <div style="margin: 10px;">
+        <label for="firstX">
+          1-я точка
+        </label>
+        <input style="width: 50px;" id="firstX" type="number" />
+        <input style="width: 50px;" id="firstY" type="number" />
+      </div>
+      <div style="margin: 10px;">
+        <label for="secondX">
+          2-я точка
+        </label>
+        <input style="width: 50px;" id="secondX" type="number" />
+        <input style="width: 50px;" id="secondY" type="number" />
+      </div>
+      <div style="margin: 10px;">
+        <label for="thirdX">
+          3-я точка
+        </label>
+        <input style="width: 50px;" id="thirdX" type="number" />
+        <input style="width: 50px;" id="thirdY" type="number" />
+      </div>
+      <button onclick="getValues()">Отрисовать</button>
+      <div id="options" style="display:none; margin: 10px">
+        <div style="margin: 10px;">
+          <button onclick="move()">
+            Сместить
+          </button>
+          <input style="width: 50px;" id="move" type="number" />
+        </div>
+        <div id="scaleBlock" style="margin: 10px;">
+          <button onclick="scale()">
+            Масштабировать
+          </button>
+          <label for="scaleСoef">Коэффициент масштабирования</label>
+          <input
+            style="width: 50px;"
+            step="0.01"
+            id="scaleСoef"
+            type="number"
+          />
+        </div>
+        <div id="rotateBlock" style="margin: 10px;">
+          <button onclick="rotate()">
+            Поворот
+          </button>
+          <label for="rotateAngle">Угол</label>
+          <input style="width: 50px;" id="rotateAngle" type="number" />
+        </div>
+      </div>
+    </div>
+    <canvas
+      style="border: 1px solid black;"
+      id="canvas"
+      width="400"
+      height="400"
+    ></canvas>
+    <script>
+      var canvas = document.getElementById("canvas");
+      var ctx = canvas.getContext("2d");
+      var speed = 10; // speed animation
+      var coords;
+      var firstX, firstY, secondX, secondY, thirdX, thirdY;
+      var scaleInnerHTML, rotateInnerHTML;
+
+      function getBezierBasis(i, n, t) {
+        // находим bi,n по алгоритму де Кастельжо
+        // Факториал
+        function f(n) {
+          // рекурсивно находим факториал
+          if (n <= 1) {
+            return 1;
+          } else {
+            return n * f(n - 1);
+          }
+        }
+
+        // считаем i-й элемент полинома Берштейна
+        return (
+          (f(n) / (f(i) * f(n - i))) * Math.pow(t, i) * Math.pow(1 - t, n - i)
+        );
+      }
+
+      function getBezierCurve(arr) {
+        var step = 0.01; // пишем шаг
+
+        var res = new Array(); // создаем массив в котором будем хранить новые точки для построения
+
+        for (var t = 0; t < 1 + step; t += step) {
+          if (t > 1) {
+            t = 1; // сумма шага не может быть больше 1
+          }
+
+          var ytmp = 0; // временные для хранения координат
+          var xtmp = 0;
+
+          for (var i = 0; i < arr.length; i++) {
+            // проходим по каждой точке
+            var b = getBezierBasis(i, arr.length - 1, t); // вычисляем наш полином Берштейна
+            xtmp += arr[i].x * b; // записываем и прибавляем результат
+            ytmp += arr[i].y * b;
+          }
+          res.push({ x: xtmp, y: ytmp }); // запушиваем конечный результат в наш новыйй массив
+        }
+
+        return res; // возвращаем его
+      }
+
+      function move() {
+        var a = +document.getElementById("move").value;
+        if (a) {
+          coords = coords.map(point => {
+            point.x += a;
+            point.y += a;
+            return point;
+          });
+          draw(coords);
+        }
+      }
+
+      function scale() {
+        var a = +document.getElementById("scaleСoef").value;
+        if (a) {
+          var pointSelector = document.getElementById("scalePoint");
+          var pointIndex = +pointSelector.options[pointSelector.selectedIndex]
+            .value;
+          var relativeX, relativeY;
+          switch (pointIndex) {
+            case 1: {
+              relativeX = firstX;
+              relativeY = firstY;
+              break;
+            }
+            case 2: {
+              relativeX = secondX;
+              relativeY = secondY;
+              break;
+            }
+            case 3: {
+              relativeX = thirdX;
+              relativeY = thirdY;
+              break;
+            }
+          }
+          coords = coords.map(point => {
+            point.x = relativeX + (point.x - relativeX) * a;
+            point.y = relativeY + (point.y - relativeY) * a;
+            return point;
+          });
+          //   console.log(coords);
+          draw(coords);
+        }
+      }
+
+      function rotate() {
+        var angle = +document.getElementById("rotateAngle").value;
+        if (angle) {
+          var pointSelector = document.getElementById("rotatePoint");
+          var pointIndex = +pointSelector.options[pointSelector.selectedIndex]
+            .value;
+          var relativeX, relativeY;
+          switch (pointIndex) {
+            case 1: {
+              relativeX = firstX;
+              relativeY = firstY;
+              break;
+            }
+            case 2: {
+              relativeX = secondX;
+              relativeY = secondY;
+              break;
+            }
+            case 3: {
+              relativeX = thirdX;
+              relativeY = thirdY;
+              break;
+            }
+          }
+          coords = coords.map(point => {
+            let x = point.x;
+            let y = point.y;
+            point.x =
+              relativeX +
+              (x - relativeX) * Math.cos(angle) +
+              (relativeY - y) * Math.sin(angle);
+            point.y =
+              relativeY +
+              (x - relativeX) * Math.sin(angle) +
+              (y - relativeY) * Math.cos(angle);
+            return point;
+          });
+          //   console.log(coords);
+          draw(coords);
+        }
+      }
+      function getValues() {
+        firstX = +document.getElementById("firstX").value;
+        firstY = +document.getElementById("firstY").value;
+        secondX = +document.getElementById("secondX").value;
+        secondY = +document.getElementById("secondY").value;
+        thirdX = +document.getElementById("thirdX").value;
+        thirdY = +document.getElementById("thirdY").value;
+        //simple validator
+        if (!firstX || !firstY || !secondX || !secondY || !thirdX || !thirdY) {
+          alert("Please, fulfill all fields");
+        } else {
+          //set options block visible
+          document.getElementById("options").style.display = "block";
+          //define selector and add it to scale, rotate blocks
+          function getSelector(isScale) {
+            return `
+           			<label for="${isScale ? `scale` : `rotate`}Point">Точка</label>
+           			<select id="${isScale ? `scale` : `rotate`}Point">
+          				<option value="1">${firstX};${firstY}</option>
+               			<option value="2">${secondX};${secondY}</option>
+               			<option value="3">${thirdX};${thirdY}</option>
+            	  	</select>`;
+          }
+          var scaleBlock = document.getElementById("scaleBlock");
+          var rotateBlock = document.getElementById("rotateBlock");
+          if (scaleBlock.innerHTML.includes("select")) {
+            scaleBlock.innerHTML = scaleInnerHTML + getSelector(true);
+            rotateBlock.innerHTML = rotateInnerHTML + getSelector(false);
+          } else {
+            scaleInnerHTML = scaleBlock.innerHTML;
+            rotateInnerHTML = rotateBlock.innerHTML;
+            scaleBlock.innerHTML += getSelector(true);
+            rotateBlock.innerHTML += getSelector(false);
+          }
+
+          coords = [
+            {
+              x: firstX,
+              y: firstY
+            },
+            {
+              x: secondX,
+              y: secondY
+            },
+            {
+              x: thirdX,
+              y: thirdY
+            }
+          ];
+          draw(coords);
+        }
+      }
+
+      function draw(coords) {
+        var arrayCords = getBezierCurve(coords); // получаем координаты точек кривой безье
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.beginPath(); // очищаем полотно и начинаем рисовать
+        ctx.moveTo(arrayCords[0].x, arrayCords[0].y); // двигаемся к 1 точке
+
+        var i = 0;
+        var interval = setInterval(function() {
+          drawPoint(); // вызываем функцию прорисовки
+          i++; // увеличиваем i
+          if (i >= arrayCords.length) {
+            // проверяем не конец ли массива?
+            clearInterval(interval); // конец, удаляем интервал
+          }
+        }, speed);
+
+        function drawPoint() {
+          // функция прорисовки точки
+          ctx.lineTo(arrayCords[i].x, arrayCords[i].y); // рисуем итую точку
+          ctx.stroke();
+        }
+      }
+    </script>
+  </body>
+</html>
+
